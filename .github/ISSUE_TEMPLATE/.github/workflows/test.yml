@@ -1,0 +1,19 @@
+name: Test dictionary
+on: [push, pull_request]
+jobs:
+  hunspell-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y hunspell
+      - name: Valid Shona must pass
+        run: |
+          BAD=$(echo "ndinotenda vakauya kubatsirana ndinokuda handitendi akashandiswa mhoroi sadza vanhu" \
+            | hunspell -d dictionaries/sn_ZW -l)
+          if [ -n "$BAD" ]; then echo "FAILED words: $BAD"; exit 1; fi
+      - name: Gibberish must fail
+        run: |
+          CAUGHT=$(echo "xyzqk tendaq ndinl" | hunspell -d dictionaries/sn_ZW -l | wc -l)
+          if [ "$CAUGHT" -lt 3 ]; then echo "Spellchecker accepted gibberish"; exit 1; fi
+      - name: Word dic generator runs
+        run: python3 tools/make_word_dic.py
