@@ -1,0 +1,37 @@
+name: "Word report (wrong or missing Shona word)"
+description: "Report a Shona word that is wrongly accepted, wrongly rejected, or missing. No coding needed - 30 seconds."
+title: "[word] "
+labels: ["lexicon", "native-speaker-review"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of report?
+      options:
+        - Missing word (correct Shona marked as error)
+        - Wrong word (incorrect form accepted by the spellchecker)
+        - Wrong suggestion (autocorrect suggests the wrong word)
+    validations:
+      required: true
+  - type: input
+    id: word
+    attributes:
+      label: The word or phrase
+      placeholder: "e.g. ndinokutendai"
+    validations:
+      required: true
+  - type: input
+    id: correct
+    attributes:
+      label: Correct form (if reporting a wrong word/suggestion)
+      placeholder: "e.g. ndinokutendai"
+  - type: textarea
+    id: context
+    attributes:
+      label: Example sentence (helps us verify)
+      placeholder: "e.g. Ndinokutendai nerubatsiro rwenyu."
+  - type: dropdown
+    id: dialect
+    attributes:
+      label: Dialect (optional)
+      options: [Zezuru, Karanga, Manyika, Korekore, Ndau, Not sure / standard]
