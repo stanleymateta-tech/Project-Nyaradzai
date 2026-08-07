@@ -1,0 +1,183 @@
+# sn_ZW.aff — Shona (Zimbabwe) Hunspell affix file
+# Shona Digital Toolkit v0.1 (seed release)
+# License: MIT — free for community and academic extension
+#
+# Shona is agglutinative: a verb stem like -tenda (thank/believe)
+# surfaces as ndinotenda, unotenda, vanotenda, ndichatenda, ndakatenda...
+# Rather than list every form, we generate them:
+#   flag V  = verb stem: takes subject-concord + tense prefix complexes
+#   flag N  = infinitive/class-15 "ku-" prefix (kutenda, kuona)
+#   flag G  = negative prefix complexes (handitendi handled via REP for v0.1)
+#
+# v0.1 covers the most frequent SC+TAM combinations (present habitual -no-,
+# future -cha-, recent past -a-, remote past -aka-, past habitual -ai-).
+# Object infixes (-ku-, -mu-, -zvi-...) and verbal extensions are v0.2 work.
+
+SET UTF-8
+COMPLEXPREFIXES
+TRY ainouderzhskmvtwbgpycfjl'
+
+WORDCHARS '
+
+# ---- suggestion improvements: common Shona typing errors ----
+REP 12
+REP l r
+REP r l
+REP nh n'
+REP mw mv
+REP ts tsv
+REP z zv
+REP s sv
+REP shona Shona
+REP c ch
+REP dh d
+REP bh b
+REP vh v
+
+MAP 2
+MAP lr
+MAP aá
+
+# =====================================================================
+# PFX V: subject concord + tense/aspect complexes attached to verb stems
+# Stems are stored WITH final vowel (e.g. "tenda"), prefixes attach whole.
+# SCs: ndi(1sg) u(2sg) a(3sg cl1) ti(1pl) mu(2pl) va(3pl/hon)
+#      chi(cl7) zvi(cl8) ri(cl5) i(cl9) dzi(cl10) ku(cl15/17) pa(cl16) mu(cl18)
+# TAMs: -no- habitual/present, -cha- future, -a- recent past,
+#       -aka- remote past, -ai- past habitual, -nga- potential aux forms
+# =====================================================================
+PFX V Y 78
+PFX V 0 ndino .
+PFX V 0 ndicha .
+PFX V 0 ndaka .
+PFX V 0 ndai .
+PFX V 0 ndi .
+PFX V 0 nda .
+PFX V 0 uno .
+PFX V 0 ucha .
+PFX V 0 waka .
+PFX V 0 wai .
+PFX V 0 wa .
+PFX V 0 ano .
+PFX V 0 acha .
+PFX V 0 aka .
+PFX V 0 ai .
+PFX V 0 a .
+PFX V 0 tino .
+PFX V 0 ticha .
+PFX V 0 taka .
+PFX V 0 tai .
+PFX V 0 ta .
+PFX V 0 ti .
+PFX V 0 muno .
+PFX V 0 mucha .
+PFX V 0 maka .
+PFX V 0 mai .
+PFX V 0 ma .
+PFX V 0 mu .
+PFX V 0 vano .
+PFX V 0 vacha .
+PFX V 0 vaka .
+PFX V 0 vai .
+PFX V 0 va .
+PFX V 0 chino .
+PFX V 0 chicha .
+PFX V 0 chaka .
+PFX V 0 chai .
+PFX V 0 cha .
+PFX V 0 chi .
+PFX V 0 zvino .
+PFX V 0 zvicha .
+PFX V 0 zvaka .
+PFX V 0 zvai .
+PFX V 0 zva .
+PFX V 0 zvi .
+PFX V 0 rino .
+PFX V 0 richa .
+PFX V 0 raka .
+PFX V 0 rai .
+PFX V 0 ra .
+PFX V 0 ri .
+PFX V 0 ino .
+PFX V 0 icha .
+PFX V 0 yaka .
+PFX V 0 yai .
+PFX V 0 ya .
+PFX V 0 dzino .
+PFX V 0 dzicha .
+PFX V 0 dzaka .
+PFX V 0 dzai .
+PFX V 0 dza .
+PFX V 0 dzi .
+PFX V 0 kuno .
+PFX V 0 kucha .
+PFX V 0 kwaka .
+PFX V 0 kwai .
+PFX V 0 kwa .
+PFX V 0 pano .
+PFX V 0 pacha .
+PFX V 0 paka .
+PFX V 0 pai .
+PFX V 0 pa .
+PFX V 0 handi .
+PFX V 0 hau .
+PFX V 0 haa .
+PFX V 0 hati .
+PFX V 0 hamu .
+PFX V 0 hava .
+
+# PFX N: infinitive / gerund ku- (class 15): kutenda, kuona, kudya
+PFX N Y 2
+PFX N 0 ku .
+PFX N 0 kusa .
+
+# PFX C: copulative/associative particles on nouns & pronouns
+# na- (with/and, by), sa- (like), va- (honorific), mu- (in), pa- (at), ku- (to)
+PFX C Y 8
+PFX C 0 na .
+PFX C 0 ne .
+PFX C 0 no .
+PFX C 0 sa .
+PFX C 0 se .
+PFX C 0 mu .
+PFX C 0 pa .
+PFX C 0 ku .
+
+# SFX P: verb final-vowel alternation a->i for negatives (handitendi)
+# applies to stems flagged P, replacing final a with i
+SFX P Y 1
+SFX P a i a
+
+# PFX O: object concords (infixes, realised as inner prefixes): ndinoKUda
+PFX O Y 15
+PFX O 0 ndi/VN .
+PFX O 0 ku/VN .
+PFX O 0 mu/VN .
+PFX O 0 ti/VN .
+PFX O 0 va/VN .
+PFX O 0 wa/VN .
+PFX O 0 i/VN .
+PFX O 0 ri/VN .
+PFX O 0 chi/VN .
+PFX O 0 zvi/VN .
+PFX O 0 dzi/VN .
+PFX O 0 ru/VN .
+PFX O 0 ka/VN .
+PFX O 0 hu/VN .
+PFX O 0 pa/VN .
+
+# SFX E: verbal extensions on -a stems
+# applicative -ira/-era, causative -isa/-esa, passive -wa/-iwa,
+# reciprocal -ana, neuter/stative -ika/-eka, causative+passive -iswa
+SFX E Y 11
+SFX E a ira a
+SFX E a era a
+SFX E a isa a
+SFX E a esa a
+SFX E a wa a
+SFX E a iwa a
+SFX E a ana a
+SFX E a ika a
+SFX E a eka a
+SFX E a iswa a
+SFX E a irwa a
