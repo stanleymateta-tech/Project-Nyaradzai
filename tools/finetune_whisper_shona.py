@@ -61,7 +61,12 @@ def main():
         batch["labels"] = processor.tokenizer(batch[text_col]).input_ids
         return batch
 
-    ds = ds.map(prepare, remove_columns=ds["train"].column_names, num_proc=2)
+    try:
+        ds = ds.map(prepare, remove_columns=ds["train"].column_names, num_proc=1)
+    except RuntimeError as e:
+        print(f"Map failed ({e}). Retrying with batched=False...")
+        ds = ds.map(prepare, remove_columns=ds["train"].column_names,
+                    num_proc=1, batched=False)
 
     @dataclass
     class Collator:
@@ -92,7 +97,7 @@ def main():
 
     training_args = Seq2SeqTrainingArguments(
         output_dir=args.output,
-        per_device_train_batch_size=args.batch,
+        per_device_train_batch_size=min(args.batch, 4),
         gradient_accumulation_steps=2,
         learning_rate=1e-5,
         warmup_steps=200,
@@ -106,6 +111,7 @@ def main():
         predict_with_generate=True,
         generation_max_length=225,
         report_to=[],
+        dataloader_num_workers=0,
     )
 
     trainer = Seq2SeqTrainer(
