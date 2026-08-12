@@ -1,128 +1,159 @@
-#!/usr/bin/env python3
-"""
-finetune_whisper_shona.py — Fine-tune OpenAI Whisper on Google's WAXAL
-Shona ASR dataset (huggingface.co/datasets/google/WaxalNLP, config sna_asr).
-
-This turns Phase 3 (Shona speech recognition for TV/video captioning) from
-a data-collection project into a training run. WAXAL is CC-BY-4.0, so the
-resulting model can be released openly (credit Google's WAXAL in any release).
-
-WHERE TO RUN (free options):
-  - Google Colab (free T4 GPU): whisper-small fits comfortably
-  - Kaggle notebooks (free GPU quota)
-  Upload this file, run: !pip install -q transformers datasets evaluate
-                                       jiwer accelerate soundfile librosa
-  then: !python finetune_whisper_shona.py --model openai/whisper-small
-
-OUTPUT: a Shona-specialised Whisper checkpoint + word-error-rate report,
-publishable to Hugging Face under your own name/organisation.
-"""
-import argparse
-
-
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="openai/whisper-small",
-                    help="whisper-tiny for quick tests, whisper-small for Colab, "
-                         "whisper-large-v3 if you have a big GPU")
-    ap.add_argument("--output", default="./whisper-shona")
-    ap.add_argument("--epochs", type=int, default=3)
-    ap.add_argument("--batch", type=int, default=8)
-    ap.add_argument("--max-steps", type=int, default=4000)
-    args = ap.parse_args()
-
-    import torch
-    import evaluate
-    from dataclasses import dataclass
-    from datasets import load_dataset, Audio
-    from transformers import (WhisperProcessor,
-                              WhisperForConditionalGeneration,
-                              Seq2SeqTrainer, Seq2SeqTrainingArguments)
-
-    print("Loading WAXAL Shona ASR data (google/WaxalNLP, sna_asr)...")
-    ds = load_dataset("google/WaxalNLP", "sna_asr")
-    # Whisper expects 16 kHz
-    ds = ds.cast_column("audio", Audio(sampling_rate=16000))
-    # find the transcript column (dataset cards evolve; be defensive)
-    text_col = next(c for c in ds["train"].column_names
-                    if c.lower() in ("text", "transcription", "transcript", "sentence"))
-    print(f"Transcript column: {text_col};  train size: {len(ds['train']):,}")
-
-    processor = WhisperProcessor.from_pretrained(
-        args.model, language="shona", task="transcribe")
-    model = WhisperForConditionalGeneration.from_pretrained(args.model)
-    model.generation_config.language = "shona"
-    model.generation_config.task = "transcribe"
-
-    def prepare(batch):
-        audio = batch["audio"]
-        batch["input_features"] = processor.feature_extractor(
-            audio["array"], sampling_rate=16000).input_features[0]
-        batch["labels"] = processor.tokenizer(batch[text_col]).input_ids
-        return batch
-
-    ds = ds.map(prepare, remove_columns=ds["train"].column_names, num_proc=2)
-
-    @dataclass
-    class Collator:
-        def __call__(self, features):
-            input_feats = [{"input_features": f["input_features"]} for f in features]
-            batch = processor.feature_extractor.pad(input_feats, return_tensors="pt")
-            label_feats = [{"input_ids": f["labels"]} for f in features]
-            labels = processor.tokenizer.pad(label_feats, return_tensors="pt")
-            lab = labels["input_ids"].masked_fill(
-                labels.attention_mask.ne(1), -100)
-            if (lab[:, 0] == processor.tokenizer.bos_token_id).all():
-                lab = lab[:, 1:]
-            batch["labels"] = lab
-            return batch
-
-    wer_metric = evaluate.load("wer")
-
-    def compute_metrics(pred):
-        ids = pred.predictions
-        label_ids = pred.label_ids
-        label_ids[label_ids == -100] = processor.tokenizer.pad_token_id
-        hyp = processor.tokenizer.batch_decode(ids, skip_special_tokens=True)
-        ref = processor.tokenizer.batch_decode(label_ids, skip_special_tokens=True)
-        return {"wer": 100 * wer_metric.compute(predictions=hyp, references=ref)}
-
-    eval_split = "validation" if "validation" in ds else (
-        "test" if "test" in ds else None)
-
-    training_args = Seq2SeqTrainingArguments(
-        output_dir=args.output,
-        per_device_train_batch_size=args.batch,
-        gradient_accumulation_steps=2,
-        learning_rate=1e-5,
-        warmup_steps=200,
-        max_steps=args.max_steps,
-        num_train_epochs=args.epochs,
-        fp16=torch.cuda.is_available(),
-        eval_strategy="steps" if eval_split else "no",
-        eval_steps=500,
-        save_steps=500,
-        logging_steps=50,
-        predict_with_generate=True,
-        generation_max_length=225,
-        report_to=[],
-    )
-
-    trainer = Seq2SeqTrainer(
-        model=model, args=training_args,
-        train_dataset=ds["train"],
-        eval_dataset=ds[eval_split] if eval_split else None,
-        data_collator=Collator(),
-        compute_metrics=compute_metrics if eval_split else None,
-        processing_class=processor.feature_extractor,
-    )
-    trainer.train()
-    trainer.save_model(args.output)
-    processor.save_pretrained(args.output)
-    print(f"\nDone. Shona Whisper model saved to {args.output}")
-    print("Next: push to Hugging Face hub, then wire into a captioning "
-          "pipeline (whisper-live / whisperX) for broadcast use.")
-
-
-if __name__ == "__main__":
-    main()
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Whisper-Shona v2 \u2014 Project Nyaradzai\n",
+    "**Disconnect-proof version.** Checkpoints save to your Google Drive, every step verifies itself.\n",
+    "\n",
+    "**Golden rule: after ANY disconnect or restart, always run Cell 1 again first.** It is safe to re-run everything from the top at any time \u2014 completed training resumes where it left off.\n",
+    "\n",
+    "Setup once: Runtime \u2192 Change runtime type \u2192 **GPU** \u2192 Save."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Cell 1 \u2014 Setup (ALWAYS run this first, and again after any disconnect)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "metadata": {},
+   "execution_count": null,
+   "outputs": [],
+   "source": [
+    "# 1a. Connect your Google Drive (checkpoints survive disconnects there)\n",
+    "from google.colab import drive\n",
+    "drive.mount('/content/drive')\n",
+    "\n",
+    "import os\n",
+    "WORKDIR = '/content/drive/MyDrive/whisper-shona'\n",
+    "os.makedirs(WORKDIR, exist_ok=True)\n",
+    "print('Model checkpoints will be stored in:', WORKDIR)\n",
+    "\n",
+    "# 1b. Install libraries\n",
+    "!pip install -q transformers datasets evaluate jiwer accelerate soundfile librosa\n",
+    "\n",
+    "# 1c. Download the training script \u2014 with LOUD verification\n",
+    "import urllib.request\n",
+    "url = 'https://raw.githubusercontent.com/stanleymateta-tech/Project-Nyaradzai/main/tools/finetune_whisper_shona.py'\n",
+    "urllib.request.urlretrieve(url, '/content/finetune_whisper_shona.py')\n",
+    "size = os.path.getsize('/content/finetune_whisper_shona.py')\n",
+    "assert size > 3000, 'Download failed \u2014 check the URL / your repo'\n",
+    "print(f'Training script downloaded OK ({size:,} bytes)')\n",
+    "\n",
+    "# 1d. Confirm GPU\n",
+    "import torch\n",
+    "if torch.cuda.is_available():\n",
+    "    print('GPU ready:', torch.cuda.get_device_name(0))\n",
+    "else:\n",
+    "    print('*** NO GPU! Runtime -> Change runtime type -> GPU, then re-run this cell ***')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Cell 2 \u2014 Log in to Hugging Face\n",
+    "(huggingface.co \u2192 Settings \u2192 Access Tokens \u2192 New token, type **Write**. Needed once per session.)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "metadata": {},
+   "execution_count": null,
+   "outputs": [],
+   "source": [
+    "from huggingface_hub import notebook_login\n",
+    "notebook_login()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Cell 3 \u2014 Train\n",
+    "Takes ~2\u20134 hours. Safe to interrupt: because checkpoints are on Drive, re-running Cell 1 then this cell **resumes automatically** \u2014 you never lose progress."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "metadata": {},
+   "execution_count": null,
+   "outputs": [],
+   "source": [
+    "!python /content/finetune_whisper_shona.py --model openai/whisper-small --output /content/drive/MyDrive/whisper-shona --max-steps 4000"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Cell 4 \u2014 Publish to Hugging Face\n",
+    "(Checks everything before uploading and tells you exactly what's wrong if something is missing.)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "metadata": {},
+   "execution_count": null,
+   "outputs": [],
+   "source": [
+    "import os\n",
+    "from huggingface_hub import HfApi\n",
+    "\n",
+    "MODEL_DIR = '/content/drive/MyDrive/whisper-shona'\n",
+    "\n",
+    "# pre-flight checks with friendly messages\n",
+    "if not os.path.isdir(MODEL_DIR):\n",
+    "    raise SystemExit('Model folder not found. Run Cell 1, then Cell 3, first.')\n",
+    "if not any(f.endswith('.safetensors') or f == 'pytorch_model.bin' for f in os.listdir(MODEL_DIR)):\n",
+    "    raise SystemExit('No trained model weights in the folder yet \u2014 Cell 3 has not finished. '\n",
+    "                     'If it was interrupted, re-run Cell 1 then Cell 3 (it resumes automatically).')\n",
+    "\n",
+    "api = HfApi()\n",
+    "repo_id = api.whoami()['name'] + '/whisper-small-shona'\n",
+    "api.create_repo(repo_id, exist_ok=True)\n",
+    "api.upload_folder(folder_path=MODEL_DIR, repo_id=repo_id,\n",
+    "                  ignore_patterns=['checkpoint-*'])   # upload final model only, not checkpoints\n",
+    "print('PUBLISHED: https://huggingface.co/' + repo_id)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Cell 5 \u2014 Test it on real audio\n",
+    "Upload a Shona .mp3/.wav using the folder icon on the left, put its name below, and run."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "metadata": {},
+   "execution_count": null,
+   "outputs": [],
+   "source": [
+    "import torch\n",
+    "from transformers import pipeline\n",
+    "asr = pipeline('automatic-speech-recognition',\n",
+    "               model='/content/drive/MyDrive/whisper-shona',\n",
+    "               device=0 if torch.cuda.is_available() else -1)\n",
+    "print(asr('your_audio.mp3', return_timestamps=True)['text'])"
+   ]
+  }
+ ],
+ "metadata": {
+  "accelerator": "GPU",
+  "colab": {
+   "provenance": []
+  },
+  "language_info": {
+   "name": "python"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 0
+}
