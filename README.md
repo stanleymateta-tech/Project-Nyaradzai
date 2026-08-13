@@ -4,7 +4,11 @@
 recognition for 10+ million Shona speakers — free, open source, MIT-licensed.
 
 > Type Shona without red squiggles. Autocorrect that suggests *Shona*, not English.
-> No more "language detected: Indonesian". And a path to live Shona captions on TV.
+> No more "language detected: Indonesian". **Live Shona speech recognition is now real.**
+
+[![Shona ASR Model](https://img.shields.io/badge/🤗%20Hugging%20Face-whisper--small--shona-blue)](https://huggingface.co/Starsm91/whisper-small-shona)
+[![WER: 36.42%](https://img.shields.io/badge/WER-36.42%25-green)](https://huggingface.co/Starsm91/whisper-small-shona)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## 🚀 Install the spellchecker today
 
@@ -39,6 +43,19 @@ as Hunspell rules:
 | Negative paradigm | **handi**tend**i** | ✅ v0.2 |
 | 603 curated seed stems → | **214,677 recognised forms** | growing |
 
+
+## 🎙 Shona Speech Recognition (NEW)
+
+The first open Shona speech recognition model is now live:
+
+**[huggingface.co/Starsm91/whisper-small-shona](https://huggingface.co/Starsm91/whisper-small-shona)**
+
+- Trained on Google's WAXAL Shona ASR dataset (CC-BY-4.0)
+- Word Error Rate: **36.42%** — roughly 2 in 3 words correct, first version
+- Based on OpenAI Whisper-small, fine-tuned for chiShona
+- Use it in Python: `pipeline("automatic-speech-recognition", model="Starsm91/whisper-small-shona")`
+- Foundation for live TV and video captioning in Shona
+
 ## 🛠 Tools
 
 | Script | Purpose |
@@ -52,9 +69,10 @@ as Hunspell rules:
 
 - [x] **v0.1** — Seed lexicon, SC/TAM verb morphology, LibreOffice + Word packaging
 - [x] **v0.2** — Object concords, verbal extensions, negatives; WAXAL integration scripts
+- [x] **v0.5** — **[DONE]** Shona Whisper ASR model published: [huggingface.co/Starsm91/whisper-small-shona](https://huggingface.co/Starsm91/whisper-small-shona) — WER: **36.42%** (trained on Google WAXAL, 4000 steps, ~13,000 examples)
 - [ ] **v0.3** — Native-speaker validated lexicon (help us! see below), corpus-grown to 50k entries; Firefox/Chrome/Android dictionary submissions
 - [ ] **v0.4** — Android keyboard (HeliBoard fork) with Shona autocorrect + prediction
-- [ ] **v0.5** — Shona Whisper model trained on WAXAL; captioning pipeline for broadcasters
+- [ ] **v0.6** — Fine-tune ASR further on Zimbabwean broadcast audio; deploy captioning pipeline
 - [ ] **v1.0** — University-endorsed release; LibreOffice official dictionary repo inclusion
 
 ## 🤝 Contribute (especially if you speak Shona!)
