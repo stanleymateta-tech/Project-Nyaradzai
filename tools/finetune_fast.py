@@ -12,7 +12,7 @@ def main():
     parser.add_argument("--model",      default="Starsm91/whisper-small-shona")
     parser.add_argument("--output",     default="/kaggle/working/out")
     parser.add_argument("--max-steps",  type=int, default=1000)
-    parser.add_argument("--batch",      type=int, default=8)
+    parser.add_argument("--batch",      type=int, default=2)
     parser.add_argument("--hub-repo",   default="Starsm91/whisper-small-shona")
     args = parser.parse_args()
 
@@ -47,6 +47,9 @@ def main():
     model.generation_config.language = "shona"
     model.generation_config.task = "transcribe"
     model.generation_config.forced_decoder_ids = None
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    model.config.use_cache = False
 
     print("Loading WAXAL data in streaming mode (no preprocessing wait)...")
     # Use streaming=True to avoid the slow Map step
@@ -58,7 +61,7 @@ def main():
     ).cast_column("audio", Audio(sampling_rate=16000))
 
     # Convert stream to list of processed examples (first N only)
-    N = min(args.max_steps * args.batch, 8000)
+    N = min(args.max_steps * args.batch, 2000)
     print(f"Processing {N} examples on the fly...")
 
     processed = []
@@ -119,7 +122,7 @@ def main():
     training_args = Seq2SeqTrainingArguments(
         output_dir                  = args.output,
         per_device_train_batch_size = args.batch,
-        gradient_accumulation_steps = 2,
+        gradient_accumulation_steps = 8,
         learning_rate               = 1e-5,
         warmup_steps                = 100,
         max_steps                   = args.max_steps,
