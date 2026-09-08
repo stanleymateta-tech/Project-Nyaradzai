@@ -51,37 +51,49 @@ def main():
         torch.cuda.empty_cache()
     model.config.use_cache = False
 
-    print("Loading WAXAL data in streaming mode (no preprocessing wait)...")
-    # Use streaming=True to avoid the slow Map step
-    ds_stream = load_dataset(
+    print("Loading WAXAL data...")
+    import soundfile as sf_lib
+    import io as io_lib
+
+    ds_raw = load_dataset(
         "google/WaxalNLP", "sna_asr",
         split="train",
-        streaming=True,
-        trust_remote_code=True
-    ).cast_column("audio", Audio(sampling_rate=16000))
+    )
 
-    # Convert stream to list of processed examples (first N only)
     N = min(args.max_steps * args.batch, 2000)
-    print(f"Processing {N} examples on the fly...")
+    print(f"Processing {N} examples...")
 
     processed = []
-    for i, example in enumerate(ds_stream):
-        if i >= N:
-            break
+    for i in range(min(N, len(ds_raw))):
         try:
-            audio = example["audio"]["array"]
-            sr    = example["audio"]["sampling_rate"]
-            text  = example.get("transcription") or example.get("text","")
-            if not text or len(text) < 2:
+            example = ds_raw[i]
+            # Get audio bytes and decode with soundfile
+            audio_data = example.get("audio", {})
+            if isinstance(audio_data, dict) and "bytes" in audio_data:
+                arr, sr = sf_lib.read(io_lib.BytesIO(audio_data["bytes"]))
+            elif isinstance(audio_data, dict) and "array" in audio_data:
+                arr = audio_data["array"]
+                sr  = audio_data.get("sampling_rate", 16000)
+            else:
+                continue
+            import numpy as np_inner
+            if len(arr.shape) > 1:
+                arr = arr.mean(axis=1)
+            if sr != 16000:
+                import librosa as lb
+                arr = lb.resample(arr.astype(np.float32), orig_sr=sr, target_sr=16000)
+            text = example.get("transcription") or example.get("text","")
+            if not isinstance(text, str) or len(text) < 2:
                 continue
             feat   = processor.feature_extractor(
-                audio, sampling_rate=sr, return_tensors="pt").input_features[0]
+                arr.astype(np.float32), sampling_rate=16000,
+                return_tensors="pt").input_features[0]
             labels = processor.tokenizer(text).input_ids
             processed.append({"input_features": feat.numpy(), "labels": labels})
         except Exception:
             continue
-        if (i+1) % 500 == 0:
-            print(f"  Processed {i+1}/{N} examples")
+        if (i+1) % 200 == 0:
+            print(f"  Processed {len(processed)} valid examples so far...")
 
     print(f"Ready: {len(processed)} examples")
 
